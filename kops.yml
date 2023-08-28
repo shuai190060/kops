@@ -1,0 +1,29 @@
+- name: update kops script 
+  hosts: localhost
+  gather_facts: no
+  tasks:
+  - name: Get s3_name_OIDC from Terraform output
+    command: terraform output -json
+    register: terraform_output
+    delegate_to: localhost
+  - name: Set s3_OICD and s3_state variables
+    shell: |
+      kops create cluster \
+      --name kops.papavonning.com \
+      --zones us-east-1a \
+      --node-count 1 \
+      --state s3://kops-papavonning \
+      --ssh-public-key ~/.ssh/ansible.pub \
+      --discovery-store s3://oidc-papavonning \
+      --node-count 1 \
+      --node-size t2.medium \
+      --control-plane-count 1 \
+      --control-plane-size t2.medium \
+      --networking calico \
+      --network-cidr "10.5.0.0/16"
+      --yes
+  - name: pass env variables
+    shell: "{{ item }}"
+    loop:
+    - export KOPS_STATE_STORE=s3://kops-papavonning
+    - export NAME=kops.papavonning.com
