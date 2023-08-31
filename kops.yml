@@ -49,46 +49,54 @@
   
 
 
-  - name: provision ELK stack 
-    tags: ELK
+  - name: install ELK stack 
+    tags: elk 
     block:
-    - name: output the dns name of elb 
-      shell: |
-        aws elbv2 describe-load-balancers --query 'LoadBalancers[?Type==`network` && AvailabilityZones[?ZoneName==`us-east-1a`]].DNSName' --output text
-      register: dns_elb
-      changed_when: false
-    - name: update the "5-dns-elb.tf" file
-      template:
-        src: ./template/5-dns-elb.tf.j2
-        dest: ./5-dns-elb.tf
-    - name: terraform apply to provision dns name record
-      shell: terraform apply -auto-approve
-    - name: install logstash helm chart
-      shell: |
-        helm repo update
-        helm install logstash elastic/logstash \
-        --namespace elk  \
-        --version 8.5.1 \
-        --values ./ELK/logstash/values.yaml \
-        --create-namespace
-    - name: install filebeat helm chart 
-      shell: |
-        helm install filebeat elastic/filebeat \
-        --namespace elk  \
-        --version 8.5.1 \
-        --values ./ELK/filebeat/values.yaml \
-        --create-namespace
-    - name: install elasticsearch helm chart 
-      shell: |
-        helm install elasticsearch elastic/elasticsearch \
-        --namespace elk  \
-        --version 8.5.1 \
-        --values ./ELK/elasticsearch/values.yaml \
-        --create-namespace
-    - name: install kibana helm chart 
-      shell: |
-        helm install kibana elastic/kibana \
-        --namespace elk  \
-        --version 8.5.1 \
-        --values ./ELK/kibana/values.yaml \
-        --create-namespace
+    - name: install ECK crd and ECK operator 
+      shell: kubectl apply -f ./ECK/
+    - name: install filebeat, elasticsearch, kibana 
+      shell: kubectl apply -f ./ECK/elk/
+
+  # - name: provision ELK stack 
+  #   tags: ELK
+  #   block:
+  #   - name: output the dns name of elb 
+  #     shell: |
+  #       aws elbv2 describe-load-balancers --query 'LoadBalancers[?Type==`network` && AvailabilityZones[?ZoneName==`us-east-1a`]].DNSName' --output text
+  #     register: dns_elb
+  #     changed_when: false
+  #   - name: update the "5-dns-elb.tf" file
+  #     template:
+  #       src: ./template/5-dns-elb.tf.j2
+  #       dest: ./5-dns-elb.tf
+  #   - name: terraform apply to provision dns name record
+  #     shell: terraform apply -auto-approve
+  #   - name: install logstash helm chart
+  #     shell: |
+  #       helm repo update
+  #       helm install logstash elastic/logstash \
+  #       --namespace elk  \
+  #       --version 8.5.1 \
+  #       --values ./ELK/logstash/values.yaml \
+  #       --create-namespace
+  #   - name: install filebeat helm chart 
+  #     shell: |
+  #       helm install filebeat elastic/filebeat \
+  #       --namespace elk  \
+  #       --version 8.5.1 \
+  #       --values ./ELK/filebeat/values.yaml \
+  #       --create-namespace
+    # - name: install elasticsearch helm chart 
+    #   shell: |
+    #     helm install elasticsearch elastic/elasticsearch \
+    #     --namespace elk  \
+    #     --version 8.5.1 \
+    #     --values ./ELK/elasticsearch/values.yaml \
+    #     --create-namespace
+    # - name: install kibana helm chart 
+    #   shell: |
+    #     helm install kibana elastic/kibana \
+    #     --namespace elk  \
+    #     --version 8.5.1 \
+    #     --values ./ELK/kibana/values.yaml \
+    #     --create-namespace
