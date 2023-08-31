@@ -10,6 +10,7 @@
     shell: |
       kops create cluster \
       --name kops.papavonning.com \
+      --kubernetes-version v1.27.5 \
       --zones us-east-1a \
       --node-count 1 \
       --state s3://kops-papavonning \
@@ -27,3 +28,67 @@
     loop:
     - export KOPS_STATE_STORE=s3://kops-papavonning
     - export NAME=kops.papavonning.com
+
+  - name: install nginx ingress controller
+    shell: |
+      helm install ingress-nginx ingress-nginx/ingress-nginx \
+      --namespace ingress \
+      --version 4.4.2 \
+      --values ./k8s_tools/nginx_ingress/values.yml \
+      --create-namespace 
+    tags: nginx 
+  
+  - name: install kube-prometheus-stack
+    shell: |
+      helm install prometheus-helm prometheus-community/kube-prometheus-stack -n monitoring \
+      --values ./k8s_tools/kube-prometheus-stack/values.yml \
+      --create-namespace
+    tags: 
+    - prometheus
+    - monitoring 
+  
+
+
+  - name: provision ELK stack 
+    tags: ELK
+    block:
+    - name: output the dns name of elb 
+      shell: |
+        aws elbv2 describe-load-balancers --query 'LoadBalancers[?Type==`network` && AvailabilityZones[?ZoneName==`us-east-1a`]].DNSName' --output text
+      register: dns_elb
+      changed_when: false
+    - name: update the "5-dns-elb.tf" file
+      template:
+        src: ./template/5-dns-elb.tf.j2
+        dest: ./5-dns-elb.tf
+    - name: terraform apply to provision dns name record
+      shell: terraform apply -auto-approve
+    - name: install logstash helm chart
+      shell: |
+        helm repo update
+        helm install logstash elastic/logstash \
+        --namespace elk  \
+        --version 8.5.1 \
+        --values ./ELK/logstash/values.yaml \
+        --create-namespace
+    - name: install filebeat helm chart 
+      shell: |
+        helm install filebeat elastic/filebeat \
+        --namespace elk  \
+        --version 8.5.1 \
+        --values ./ELK/filebeat/values.yaml \
+        --create-namespace
+    - name: install elasticsearch helm chart 
+      shell: |
+        helm install elasticsearch elastic/elasticsearch \
+        --namespace elk  \
+        --version 8.5.1 \
+        --values ./ELK/elasticsearch/values.yaml \
+        --create-namespace
+    - name: install kibana helm chart 
+      shell: |
+        helm install kibana elastic/kibana \
+        --namespace elk  \
+        --version 8.5.1 \
+        --values ./ELK/kibana/values.yaml \
+        --create-namespace

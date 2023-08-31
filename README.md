@@ -35,7 +35,7 @@ kops create cluster \
 --control-plane-count 1 \
 --control-plane-size t2.medium \
 --networking calico \
---network-cidr "10.5.0.0/16"
+--network-cidr "10.5.0.0/16" \
 --yes
 # --dry-run -o yaml
 
